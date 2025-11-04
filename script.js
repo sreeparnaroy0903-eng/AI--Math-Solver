@@ -1,106 +1,45 @@
-const problemType = document.getElementById('problemType');
-const dynamicInputs = document.getElementById('dynamicInputs');
-const solveButton = document.getElementById('solveButton');
-const stepsContainer = document.getElementById('stepsContainer');
-const resultContainer = document.getElementById('resultContainer');
-
-// Show inputs dynamically
-problemType.addEventListener('change', () => {
-  const type = problemType.value;
-  dynamicInputs.innerHTML = '';
-
-  if(type === "derivative" || type === "integral" || type === "simplify" || type === "arithmetic") {
-    dynamicInputs.innerHTML = `<input type="text" id="expression" placeholder="Enter expression">`;
-  } 
-  else if(type === "solve_quadratic") {
-    dynamicInputs.innerHTML = `
-      <input type="number" id="a" placeholder="Coefficient a">
-      <input type="number" id="b" placeholder="Coefficient b">
-      <input type="number" id="c" placeholder="Coefficient c">
-    `;
-  } 
-  else if(type === "solve_linear") {
-    dynamicInputs.innerHTML = `
-      <input type="number" id="a" placeholder="Coefficient a">
-      <input type="number" id="b" placeholder="Coefficient b">
-    `;
-  } 
-  else if(type === "percentage") {
-    dynamicInputs.innerHTML = `
-      <input type="number" id="part" placeholder="Part value">
-      <input type="number" id="total" placeholder="Total value">
-    `;
-  } 
-  else if(type === "matrix") {
-    dynamicInputs.innerHTML = `<textarea id="matrix" placeholder="Enter matrix as [[1,2],[3,4]]"></textarea>`;
-  }
-});
-
-// Solve button
-solveButton.addEventListener('click', async () => {
-  const type = problemType.value;
-  if(!type) return;
-
-  let values = {};
-
-  if(type === "derivative" || type === "integral" || type === "simplify" || type === "arithmetic") {
-    values.expression = document.getElementById('expression').value;
-  } 
-  else if(type === "solve_quadratic") {
-    values.a = document.getElementById('a').value;
-    values.b = document.getElementById('b').value;
-    values.c = document.getElementById('c').value;
-  } 
-  else if(type === "solve_linear") {
-    values.a = document.getElementById('a').value;
-    values.b = document.getElementById('b').value;
-  } 
-  else if(type === "percentage") {
-    values.part = document.getElementById('part').value;
-    values.total = document.getElementById('total').value;
-  } 
-  else if(type === "matrix") {
-    try {
-      values.matrix = JSON.parse(document.getElementById('matrix').value);
-    } catch {
-      alert("Invalid matrix format! Example: [[1,2],[3,4]]");
-      return;
-    }
+document.getElementById("solve-btn").addEventListener("click", async () => {
+  const problemType = document.getElementById("problem-type").value;
+  const problemInput = document.getElementById("problem-input").value.trim();
+  const resultBox = document.getElementById("result");
+  
+  if (!problemInput) {
+    resultBox.innerHTML = "⚠️ Please enter a math problem first!";
+    return;
   }
 
-  stepsContainer.innerHTML = '';
-  resultContainer.innerHTML = 'Calculating...';
+  resultBox.innerHTML = "⏳ Calculating...";
 
   try {
-   const response = await fetch("https://ai-math-solver.onrender.com/solve", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ type, expression }),
-});
+    const response = await fetch("https://ai-math-solver-5hg4.onrender.com/solve", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        type: problemType,
+        expression: problemInput
+      })
+    });
+
+    if (!response.ok) {
+      throw new Error("Server error: " + response.status);
+    }
+
     const data = await response.json();
 
-    if(data.error){
-      resultContainer.innerHTML = `Error: ${data.error}`;
-      return;
-    }
-
-    // Display steps one by one with typing effect
-    let i=0;
-    function typeStep(){
-      if(i < data.steps.length){
-        const step = document.createElement('p');
-        step.textContent = data.steps[i];
-        stepsContainer.appendChild(step);
-        i++;
-        setTimeout(typeStep, 700);
-      } else {
-        resultContainer.innerHTML = `<b>Result: ${data.result}</b>`;
+    if (data.steps && Array.isArray(data.steps)) {
+      // Show step-by-step explanation with typing animation
+      resultBox.innerHTML = "";
+      for (let i = 0; i < data.steps.length; i++) {
+        await new Promise(resolve => setTimeout(resolve, 600));
+        resultBox.innerHTML += `<div>${data.steps[i]}</div>`;
       }
+      resultBox.innerHTML += `<div style="margin-top:10px; font-weight:bold;">✅ Final Result: ${data.result.replaceAll("**", "^")}</div>`;
+    } else {
+      resultBox.innerHTML = `<div>✅ Result: ${data.result.replaceAll("**", "^")}</div>`;
     }
-    typeStep();
 
-  } catch(err){
-    resultContainer.innerHTML = `Error: ${err}`;
+  } catch (error) {
+    console.error(error);
+    resultBox.innerHTML = "❌ Error: Could not connect to the server. Please try again later.";
   }
-
 });
